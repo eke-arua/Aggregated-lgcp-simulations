@@ -51,14 +51,17 @@ qs_save(g1, "Grid object.qs2")
 boundary_raster <- terra::vect(g1$grid_data)
 
 #Create a raster template
-#res arguments should match that of grid to avoid aggregation bias
+
+#res arguments should match that of grid to avoid aggregation bias (and possible)
+#spatial misalignment
 raster_template <- rast(boundary_raster, res = 700)
 
 pop_raster <- rasterize(boundary_raster, raster_template, field = "pop")
 dist_raster <- rasterize(boundary_raster, raster_template, field = "dist")
 dist_raster_scale <- rasterize(boundary_raster, raster_template, field = "dist_scale")
 
-#true parameter values
+#Simulations
+#true parameter values for the simulations
 parameter_space <- list(
   beta_0 = c(-18, -17.75, -17.5),
   beta_1 = c(-3, -2, -1),
