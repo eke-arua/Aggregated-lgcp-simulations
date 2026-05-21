@@ -18,6 +18,10 @@ b1 <- st_read(here("Reduced Cape Town.shp"))[1] |>
   dplyr::summarise(geometry = st_union(geometry)) |>
   st_transform(crs = 22234)
 
+#load the boundary with the regions defined
+b2 <- st_read(here("Reduced Cape Town.shp"))[1] |>
+  st_transform(crs = 22234)
+
 # create a grid object with rts2
 g1 <- grid$new(b1, 700)
 
@@ -72,7 +76,10 @@ parameter_space <- list(
 #Sample from the parameter space
 source("Helper functions/parameter sampling.R")
 
-parameters <- parameter_sample(parameter_space, size = 200)
+parameters <- parameter_sample(parameter_space, size = 1150)
+
+#save the parameter values
+qs_save(parameters, "Parameters.qs2")
 
 #Simulations
 sim_list <- mclapply(seq_len(nrow(parameters)), function(x) {
@@ -110,6 +117,18 @@ points <- lapply(sim_list, function(X){
 
 })
 
-qs_save(points, "Simulated points.qs2")
-qs_save(parameters, "Parameters.qs2")
+#Save the points
+#qs_save(points, "Simulated points.qs2")
 
+#Aggregate the disease cases to each boundary
+source("Helper functions/points_to_boundary.R")
+
+sim_list_agg <- lapply(sim_list, function(X){
+
+  count = points_to_boundary(X, boundary_sf = b2)
+
+  return(count$n_points)
+})
+
+#save the aggregated cases
+qs_save(sim_list_agg, "Aggregated simulations.qs2")
