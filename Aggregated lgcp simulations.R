@@ -11,7 +11,7 @@ library(qs2)
 library(spatstat)
 
 #set seed
-set.seed(280392)
+set.seed(290392)
 
 #load shapefile for the boundary
 b1 <- st_read(here("Reduced Cape Town.shp"))[1] |>
@@ -83,10 +83,7 @@ parameter_space <- list(
 #Sample from the parameter space
 source("Helper functions/parameter sampling.R")
 
-parameters <- parameter_sample(parameter_space, size = 1150)
-
-#save the parameter values
-qs_save(parameters, "Parameters.qs2")
+parameters <- parameter_sample(parameter_space, size = 1200)
 
 #Simulations
 sim_list <- mclapply(seq_len(nrow(parameters)), function(x) {
@@ -117,6 +114,9 @@ sim_list <- mclapply(seq_len(nrow(parameters)), function(x) {
 parameters$n_events <- sapply(sim_list, function(X) X$n)
 parameters$index <- seq(nrow(parameters))
 
+#save the parameter values
+qs_save(parameters, "Parameters.qs2")
+
 #Extract the points
 points <- lapply(sim_list, function(X){
   as.data.frame(X) |>
@@ -137,5 +137,5 @@ sim_list_agg <- lapply(sim_list, function(X){
   return(count$n_points)
 })
 
-#save the aggregated cases
+#save the spatially aggregated counts
 qs_save(sim_list_agg, "Aggregated simulations.qs2")
