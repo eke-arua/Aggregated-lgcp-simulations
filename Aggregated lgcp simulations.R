@@ -64,6 +64,13 @@ pop_raster <- rasterize(boundary_raster, raster_template, field = "pop")
 dist_raster <- rasterize(boundary_raster, raster_template, field = "dist")
 dist_raster_scale <- rasterize(boundary_raster, raster_template, field = "dist_scale")
 
+#save these rasters for later use
+# writeRaster(pop_raster, "Pop density reduced 700 meters.tif")
+# writeRaster(dist_raster, "Distance to HCF reduced 700 meters.tif")
+# writeRaster(dist_raster_scale, "Distance to HCF scaled reduced 700 meters.tif")
+
+
+
 #Simulations
 #true parameter values for the simulations
 parameter_space <- list(
