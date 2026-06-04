@@ -7,7 +7,7 @@ library(parallel)
 
 
 #Load the parameters used for the simulations
-parameters <- qs_read(here("Parameters.qs2"))
+parameters <- qs_read("Parameters.qs2")
 
 #load boundary
 boundary_ct <- st_read("Reduced Cape Town.shp") |>
@@ -26,7 +26,7 @@ grid_agg$grid_data$pop <- grid_object$grid_data$pop
 sim_list_agg <- qs_read("Aggregated simulations.qs2")
 
 #fit lgcp models using rts2
-results_agg <- lapply(seq_along(sim_list_agg), function(i){
+results_agg <- mclapply(seq_along(sim_list_agg), function(i){
 
   #Add the simulated region counts to the grid object
   y_r <- sim_list_agg[[i]]
@@ -34,7 +34,7 @@ results_agg <- lapply(seq_along(sim_list_agg), function(i){
   grid_temp <- grid_agg$clone(deep = TRUE)
   grid_temp$region_data$y <- y_r
 
-  message(paste0("running simulation ", i))
+  print(paste0("running simulation ", i))
 
   fitg <- NULL
 
@@ -78,10 +78,12 @@ results_agg <- lapply(seq_along(sim_list_agg), function(i){
 
   coefs <- fitg$coefficients[1:2, , drop = FALSE]
   return(coefs)
-})
+}, mc.cores = 6)
 
 #Get models that have converged
 keep <- !vapply(results_agg, function(x) all(is.na(x)), logical(1))
+
+qs_save(keep, "Models that converged.qs2")
 parameters_reduced <- parameters[keep, , drop = FALSE]
 
 mod_results <- lapply(results_agg, as.data.frame)
@@ -95,38 +97,45 @@ mod_results <- lapply(mod_results, function(X){
 
 results_df <- dplyr::bind_rows(mod_results, .id = "ID")
 
-
-tt <- results_df %>% group_by(par) |>
-  summarise(mean(est))
-
+#extract results for intercept and slope (fixed effects)
 dist_res <- filter(results_df, par == "beta2")
+intercept_res <- filter(results_df, par == "beta1")
 
 #Function to help calculate coverage
 in_between <- function(x, lower, upper) {
   x >= lower & x <= upper
 }
 
-intercept_res <- filter(results_df, par == "beta1")
+#Function to convert the intercept (needed when spatstat is used to simulate)
+b0_convert <- function(beta_0, grid_object){
+  require(sf)
+
+  beta_0 - log(as.numeric(st_area(grid_object$grid_data$bgrid[[1]])))
+}
+
+
 
 #Bias
-bias_b0 <- mean((intercept_res$est - parameters_reduced$beta_0))
+bias_b0 <- mean((b0_convert(beta_0 = intercept_res$est, grid_object = grid_object) - parameters_reduced$beta_0))
 bias_b1 <- mean((dist_res$est - parameters_reduced$beta_1))
 
 #Relative Bias
-rel_bias_b0 <- mean((intercept_res$est - parameters_reduced$beta_0)/ parameters_reduced$beta_0)
+rel_bias_b0 <- mean((b0_convert(beta_0 = intercept_res$est, grid_object = grid_object) - parameters_reduced$beta_0)/ parameters_reduced$beta_0)
 rel_bias_b1 <- mean((dist_res$est - parameters_reduced$beta_1)/parameters_reduced$beta_1)
 
 #Coverage
-cov_b0 <- mean(in_between(parameters_reduced$beta_0, intercept_res$lower, intercept_res$upper))
-cov_b1 <- mean(in_between(parameters_reduced$beta_1, dist_res$lower, dist_res$upper))
+cov_b0 <- mean(in_between(parameters_reduced$beta_0, b0_convert(intercept_res$lower, grid_object), b0_convert(intercept_res$upper, grid_object)), na.rm = T)
+cov_b1 <- mean(in_between(parameters_reduced$beta_1, dist_res$lower, dist_res$upper), na.rm = T)
 
 #rsme
-rmse_b0 <- sqrt(mean(intercept_res$est - parameters_reduced$beta_0)^2)
-rmse_b1 <- sqrt(mean(dist_res$est - (parameters_reduced$beta_1))^2)
+rmse_b0 <- sqrt(mean((b0_convert(intercept_res$est, grid_object) - parameters_reduced$beta_0)^2))
+
+
+rmse_b1 <- sqrt(mean((dist_res$est - (parameters_reduced$beta_1))^2))
 
 #montecarlo standard error
-mcse_b0 <- sqrt((1/((length(sim_list) - 1) * length(sim_list))) * (sum((intercept_res$est - mean(intercept_res$est))^2)))
-mcse_b1 <- sqrt((1/((length(sim_list) - 1) * length(sim_list))) * (sum((dist_res$est - mean(dist_res$est))^2)))
+mcse_b0 <- sqrt((1/((nrow(parameters_reduced) - 1) * nrow(parameters_reduced))) * (sum((intercept_res$est - mean(intercept_res$est))^2)))
+mcse_b1 <- sqrt((1/((nrow(parameters_reduced) - 1) * nrow(parameters_reduced))) * (sum((dist_res$est - mean(dist_res$est))^2)))
 
 result_tab <- data.frame(rel_bias = c(rel_bias_b0, rel_bias_b1),
                          coverage = c(cov_b0, cov_b1),
