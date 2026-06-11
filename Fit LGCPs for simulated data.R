@@ -137,11 +137,12 @@ rmse_b1 <- sqrt(mean((dist_res$est - (parameters_reduced$beta_1))^2))
 mcse_b0 <- sqrt((1/((nrow(parameters_reduced) - 1) * nrow(parameters_reduced))) * (sum((intercept_res$est - mean(intercept_res$est))^2)))
 mcse_b1 <- sqrt((1/((nrow(parameters_reduced) - 1) * nrow(parameters_reduced))) * (sum((dist_res$est - mean(dist_res$est))^2)))
 
-result_tab <- data.frame(rel_bias = c(rel_bias_b0, rel_bias_b1),
+result_tab <- data.frame(avg_bias = c(bias_b0, bias_b1),
+                         rel_bias = c(rel_bias_b0, rel_bias_b1),
                          coverage = c(cov_b0, cov_b1),
                          rmse = c(rmse_b0, rmse_b1),
                          mcse = c(mcse_b0, mcse_b1),
                          row.names = c("Intercept", "Distance_scaled"))
 
 #write.csv(result_tab, "results for aggregated point data simulations.csv")
-write.csv(result_tab, "results for aggregated point data simulations aggregated_13_04_2026.csv")
+write.csv(result_tab, "results for aggregated point data simulations aggregated_04_06_2026.csv")
